@@ -73,7 +73,7 @@ func main() {
 	SendCardMsg(cmd)
 }
 
-//获取到
+//git diff --name-only HEAD~ HEAD git比较
 
 //企业微信应用消息提醒方法如下
 func SendCardMsg(fliename string) (WcSendMsg, error) {
