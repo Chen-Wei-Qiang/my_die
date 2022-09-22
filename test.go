@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -29,6 +30,8 @@ func ExecShell(command string, arg ...string) (out string, err error) {
 }
 
 // Repo ...
+// git config core.hooksPath .githooks  解决方式1
+//                                      解决方式2
 func Repo() (repo string, err error) {
 	var (
 		out string
@@ -62,23 +65,83 @@ func Branch() (branch string, err error) {
 	return
 }
 
+func SplitString(s string, myStrings []rune) []string {
+	Split := func(r rune) bool {
+		for _, v := range myStrings {
+			if v == r {
+				return true
+			}
+		}
+		return false
+	}
+	a := strings.FieldsFunc(s, Split)
+	return a
+}
+
 //git diff --name-only HEAD~ HEAD
 func main() {
-	//var Stdout []byte/
-	cmd, _ := ExecShell("git", "diff", "--name-only", "HEAD~", "HEAD")
-	//Stdout, _ = cmd.CombinedOutput()
-	//out := string(Stdout)
+
+	cmd1, _ := ExecShell("git", "diff", "--name-only", "HEAD~", "HEAD")
+
+	fmt.Println(cmd1)
+
+	cmd, _ := ExecShell("git", "log", "--oneline")
 	fmt.Println(cmd)
-	//SendCardMsg()
-	SendCardMsg(cmd)
+	myStrings := SplitString(cmd, []rune{' ', '\n'})
+
+	now_commid := myStrings[len(myStrings)-2]
+	master_commid := myStrings[0]
+	//fmt.Println(myStrings[0], myStrings[len(myStrings)-2])
+	fmt.Println()
+	fmt.Println()
+	fmt.Println()
+
+	var data []string
+	diff, _ := ExecShell("git", "diff", now_commid, master_commid, "test1.txt")
+	if diff != "" {
+		diffs := strings.Split(diff, "\n")
+		for i, diff_name := range diffs {
+			fmt.Println(i, diff_name)
+			reg := regexp.MustCompile(`^[\+\-]{1}[^\+|\-].*`)
+			s1 := reg.FindAllString(diff_name, -1)
+			if s1 != nil {
+				fmt.Println(s1)
+				data = append(data, s1[0])
+			}
+		}
+		fmt.Println(data)
+	}
+
+	var str_shan []string
+	var str_add []string
+
+	for _, j := range data {
+		if j[0] == '-' {
+			str_shan = append(str_shan, j[1:])
+		}
+		if j[0] == '+' {
+			str_add = append(str_add, j[1:])
+		}
+	}
+
+	fmt.Println(str_shan)
+	fmt.Println(str_add)
+
+	str_shans := strings.Join(str_shan, ",")
+	str_adds := strings.Join(str_add, ",")
+
+	//删除
+	str_shans_connect := fmt.Sprintf("删除词条%s \n 添加词条%s", str_shans, str_adds)
+
+	SendCardMsg(cmd1, str_shans_connect)
 }
 
 //git diff --name-only HEAD~ HEAD git比较
 
 //企业微信应用消息提醒方法如下
-func SendCardMsg(fliename string) (WcSendMsg, error) {
-
-	flie_diff := fmt.Sprintf("%s 词条文件发生改变", fliename)
+func SendCardMsg(fliename string, str_shans_connect string) (WcSendMsg, error) {
+	//查看是那些词条文件发生了改变
+	flie_diff := fmt.Sprintf("%s 词条文件发生改变\n %s", fliename, str_shans_connect)
 
 	req := WcSendMsg{MsgType: "text", Text: wcSendcontent{Content: flie_diff}}
 
